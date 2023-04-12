@@ -13,6 +13,10 @@ ha_integration_type: integration
 
 The `opensky` sensor allows one to track overhead flights in a given region. It uses crowd-sourced data from the [OpenSky Network](https://opensky-network.org/) public API. It will also fire Home Assistant events when flights enter and exit the defined region.
 
+## Installation
+
+To install this sensor, copy the files from this repo to YOUR_HA_INSTANCE/config/custom_components/opensky
+
 ## Configuration
 
 To enable this sensor, add the following lines to your `configuration.yaml` file:
