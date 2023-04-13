@@ -43,7 +43,7 @@ DEFAULT_ALTITUDE = 0
 
 EVENT_OPENSKY_ENTRY = f"{DOMAIN}_entry"
 EVENT_OPENSKY_EXIT = f"{DOMAIN}_exit"
-SCAN_INTERVAL = timedelta(seconds=25)  # opensky registered user limit is 4000 per day
+SCAN_INTERVAL = timedelta(seconds=100)  # opensky registered user limit is 4000 per day
 
 OPENSKY_URL = "https://opensky-network.org/"
 OPENSKY_API_URL = "https://opensky-network.org/api/states/all"
