@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+import math
 
 import logging
 import requests
@@ -43,10 +44,10 @@ DEFAULT_ALTITUDE = 0
 
 EVENT_OPENSKY_ENTRY = f"{DOMAIN}_entry"
 EVENT_OPENSKY_EXIT = f"{DOMAIN}_exit"
-SCAN_INTERVAL = timedelta(seconds=100)  # opensky registered user limit is 4000 per day
+SCAN_INTERVAL = timedelta(seconds=25)  # opensky registered user limit is 4000 per day
 
 OPENSKY_URL = "https://opensky-network.org/"
-OPENSKY_API_URL = "https://opensky-network.org/api/states/all"
+OPENSKY_API_URL = "https://opensky-network.org/api/states/all?lamin=%s&lomin=%s&lamax=%s&lomax=%s"
 OPENSKY_API_FIELDS = [
     ATTR_ICAO24,
     ATTR_CALLSIGN,
@@ -125,7 +126,33 @@ class OpenSkySensor(SensorEntity):
         self._username = username
         self._password = password
         self._previously_tracked = None
+        self._lat_min, self._lon_min, self._lat_max, self._lon_max = self._get_bbox()
 
+    def _get_bbox(self):
+        half_side_in_km = self._radius / 1000
+        assert half_side_in_km > 0
+
+        lat = math.radians(self._latitude)
+        lon = math.radians(self._longitude)
+
+        approx_earth_radius = 6371
+        parallel_radius = approx_earth_radius * math.cos(lat)
+
+        lat_min = lat - half_side_in_km / approx_earth_radius
+        lat_min = max(-math.pi / 2, lat_min)
+        lat_max = lat + half_side_in_km / approx_earth_radius
+        lat_max = min(math.pi / 2, lat_max)
+        lon_min = lon - half_side_in_km / parallel_radius
+        if lon_min < -math.pi:
+            lon_min = math.pi + (lon_min % -math.pi)
+        lon_max = lon + half_side_in_km / parallel_radius
+        if lon_max > math.pi:
+            lon_max = math.pi - (lon_max % math.pi)
+
+        rad2deg = math.degrees
+
+        return (rad2deg(lat_min), rad2deg(lon_min), rad2deg(lat_max), rad2deg(lon_max))
+        
     @property
     def name(self):
         """Return the name of the sensor."""
@@ -169,33 +196,45 @@ class OpenSkySensor(SensorEntity):
         self._session.auth = (self._username, self._password)
         self._session.verify = False
         auth = self._session.post(OPENSKY_URL)
-        states = self._session.get(OPENSKY_API_URL).json().get(ATTR_STATES)
-        _LOGGER.debug("STATE %s", states.headers)
-        for state in states:
-            flight = dict(zip(OPENSKY_API_FIELDS, state))
-            callsign = flight[ATTR_CALLSIGN].strip()
-            if callsign != "":
-                flight_metadata[callsign] = flight
-            else:
-                continue
-            if (
-                (longitude := flight.get(ATTR_LONGITUDE)) is None
-                or (latitude := flight.get(ATTR_LATITUDE)) is None
-                or flight.get(ATTR_ON_GROUND)
-            ):
-                continue
-            distance = util_location.distance(
-                self._latitude,
-                self._longitude,
-                latitude,
-                longitude,
-            )
-            if distance is None or distance > self._radius:
-                continue
-            altitude = flight.get(ATTR_ALTITUDE)
-            if altitude > self._altitude and self._altitude != 0:
-                continue
-            currently_tracked.add(callsign)
+#        _LOGGER.debug("AUTH %s", auth.headers)
+        url_with_bbox = OPENSKY_API_URL % (
+            self._lat_min,
+            self._lon_min,
+            self._lat_max,
+            self._lon_max,
+        )
+        states = self._session.get(url_with_bbox)
+        _LOGGER.debug("HEADERS %s", states.headers)
+        _LOGGER.debug("TEXT %s", states.text)
+        states = states.json().get(ATTR_STATES)
+        if states:
+          for state in states:
+              flight = dict(zip(OPENSKY_API_FIELDS, state))
+              callsign = flight[ATTR_CALLSIGN].strip()
+              if callsign != "":
+                  flight_metadata[callsign] = flight
+              else:
+                  continue
+              if (
+                  (longitude := flight.get(ATTR_LONGITUDE)) is None
+                  or (latitude := flight.get(ATTR_LATITUDE)) is None
+                  or flight.get(ATTR_ON_GROUND)
+              ):
+                  continue
+              distance = util_location.distance(
+                  self._latitude,
+                  self._longitude,
+                  latitude,
+                  longitude,
+              )
+              if distance is None or distance > self._radius:
+                  continue
+              altitude = flight.get(ATTR_ALTITUDE)
+              if altitude is None:
+                  continue
+              if altitude > self._altitude and self._altitude != 0:
+                  continue
+              currently_tracked.add(callsign)
         if self._previously_tracked is not None:
             entries = currently_tracked - self._previously_tracked
             exits = self._previously_tracked - currently_tracked
