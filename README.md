@@ -31,7 +31,7 @@ sensor:
 
 Configuration options for the OpenSky Network sensor:
 
-- **radius** (*Required*): Radius of region to monitor, in kilometers. If this value exceeds approximately 250 then eventually the API limit will be exceeded and errors will be noted in the logs until the day resets. See https://openskynetwork.github.io/opensky-api/rest.html#api-credit-usage
+- **radius** (*Required*): Radius of region to monitor, in kilometers. If this value exceeds approximately 250 then eventually the API limit will be exceeded, the sensor will stop working and errors will be noted in the logs until the day resets. See https://openskynetwork.github.io/opensky-api/rest.html#api-credit-usage
 - **username** (*Required*): Your Opensky-Network username.
 - **password** (*Required*): Your Opensky-Network password.
 - **latitude** (*Optional*): Region latitude. Defaults to home zone latitude.
