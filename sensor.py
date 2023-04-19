@@ -205,8 +205,10 @@ class OpenSkySensor(SensorEntity):
         )
         states = self._session.get(url_with_bbox)
         _LOGGER.debug("HEADERS %s", states.headers)
-        _LOGGER.debug("TEXT %s", states.text)
-        states = states.json().get(ATTR_STATES)
+        try:
+          states = states.json().get(ATTR_STATES)
+        except:
+          _LOGGER.debug("TEXT %s", states.text)
         if states:
           for state in states:
               flight = dict(zip(OPENSKY_API_FIELDS, state))
