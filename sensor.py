@@ -190,7 +190,7 @@ class OpenSkySensor(SensorEntity):
         
         self._session.auth = (self._username, self._password)
         self._session.verify = False
-        auth = self._session.post(OPENSKY_URL)
+        auth = self._session.post(OPENSKY_URL, verify=True)
 #        _LOGGER.debug("AUTH %s", auth.headers)
         url_with_bbox = OPENSKY_API_URL % (
             self._lat_min,
@@ -198,7 +198,7 @@ class OpenSkySensor(SensorEntity):
             self._lat_max,
             self._lon_max,
         )
-        states = self._session.get(url_with_bbox)
+        states = self._session.get(url_with_bbox, verify=True)
         _LOGGER.debug("HEADERS %s", states.headers)
         try:
           states = states.json().get(ATTR_STATES)
